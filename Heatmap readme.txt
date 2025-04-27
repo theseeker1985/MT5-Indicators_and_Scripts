@@ -6,11 +6,9 @@ Key Features:
 2.	Customizable Settings:
 o	BarsToShow: Adjusts the number of bars displayed.
 o	Opacity: Controls the transparency of the heatmap.
-
 3.	Dynamic Normalization: Automatically scales the colour range based on the highest volume in the displayed range.
-
 4.	Real-Time Updates: Recalculates and redraws when new data arrives or the chart changes.
-Value for Trading Long/Short Based on Volume:
+
 •	Confirmation of Trends: High volume during an uptrend or downtrend can confirm the strength of the move.
 •	Breakout Signals: Volume spikes during breakouts can validate the breakout's legitimacy.
 •	Reversal Clues: Divergences between price and volume (e.g., price rising on low volume) may signal potential reversals.
