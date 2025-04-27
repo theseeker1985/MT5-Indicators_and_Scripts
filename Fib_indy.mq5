@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                Multi-Fibonacci Retracement Indicator             |
+//|                Multi Fibonacci Retracement Indicator             |
 //|                       Copyright 2025, Richard                    |
 //|                                                                  |
 //+------------------------------------------------------------------+
