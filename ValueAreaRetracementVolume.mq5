@@ -19,7 +19,7 @@
 //Trade on D1 charts using weekly volume profiles
 
 
-#property version   "1.10"
+#property version   "1.20"
 #property indicator_chart_window
 #property indicator_buffers 6
 #property indicator_plots   6
@@ -66,38 +66,38 @@ int OnInit()
    
    IndicatorSetInteger(INDICATOR_DIGITS, _Digits);
    
-   // Set plot properties
-   PlotIndexSetInteger(0, PLOT_DRAW_TYPE, DRAW_LINE);
+   // Set plot properties - visibility controlled by ShowVisualElements
+   PlotIndexSetInteger(0, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_LINE : DRAW_NONE);
    PlotIndexSetInteger(0, PLOT_LINE_STYLE, STYLE_SOLID);
    PlotIndexSetInteger(0, PLOT_LINE_WIDTH, 2);
    PlotIndexSetInteger(0, PLOT_LINE_COLOR, clrBlue);
    PlotIndexSetString(0, PLOT_LABEL, "POC");
    
-   PlotIndexSetInteger(1, PLOT_DRAW_TYPE, DRAW_LINE);
+   PlotIndexSetInteger(1, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_LINE : DRAW_NONE);
    PlotIndexSetInteger(1, PLOT_LINE_STYLE, STYLE_DOT);
    PlotIndexSetInteger(1, PLOT_LINE_WIDTH, 1);
    PlotIndexSetInteger(1, PLOT_LINE_COLOR, clrGreen);
    PlotIndexSetString(1, PLOT_LABEL, "VA High");
    
-   PlotIndexSetInteger(2, PLOT_DRAW_TYPE, DRAW_LINE);
+   PlotIndexSetInteger(2, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_LINE : DRAW_NONE);
    PlotIndexSetInteger(2, PLOT_LINE_STYLE, STYLE_DOT);
    PlotIndexSetInteger(2, PLOT_LINE_WIDTH, 1);
    PlotIndexSetInteger(2, PLOT_LINE_COLOR, clrGreen);
    PlotIndexSetString(2, PLOT_LABEL, "VA Low");
    
-   PlotIndexSetInteger(3, PLOT_DRAW_TYPE, DRAW_LINE);
+   PlotIndexSetInteger(3, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_LINE : DRAW_NONE);
    PlotIndexSetInteger(3, PLOT_LINE_STYLE, STYLE_DOT);
    PlotIndexSetInteger(3, PLOT_LINE_WIDTH, 1);
    PlotIndexSetInteger(3, PLOT_LINE_COLOR, clrRed);
    PlotIndexSetString(3, PLOT_LABEL, "Profile High");
    
-   PlotIndexSetInteger(4, PLOT_DRAW_TYPE, DRAW_LINE);
+   PlotIndexSetInteger(4, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_LINE : DRAW_NONE);
    PlotIndexSetInteger(4, PLOT_LINE_STYLE, STYLE_DOT);
    PlotIndexSetInteger(4, PLOT_LINE_WIDTH, 1);
    PlotIndexSetInteger(4, PLOT_LINE_COLOR, clrRed);
    PlotIndexSetString(4, PLOT_LABEL, "Profile Low");
    
-   PlotIndexSetInteger(5, PLOT_DRAW_TYPE, DRAW_ARROW);
+   PlotIndexSetInteger(5, PLOT_DRAW_TYPE, ShowVisualElements ? DRAW_ARROW : DRAW_NONE);
    PlotIndexSetInteger(5, PLOT_ARROW, 233);
    PlotIndexSetInteger(5, PLOT_ARROW_SHIFT, -10);
    PlotIndexSetInteger(5, PLOT_LINE_COLOR, clrGold);
@@ -111,6 +111,116 @@ int OnInit()
    else profileBarsToCalculate = 1; // For daily and lower timeframes
    
    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+{
+   // Check if we have enough data
+   if(rates_total < 2) return(0);
+   
+   // Only calculate when new bar starts on the profile timeframe
+   datetime currentProfileTime = iTime(_Symbol, ProfileTimeframe, 0);
+   if(currentProfileTime == lastCalculationTime) return(rates_total);
+   lastCalculationTime = currentProfileTime;
+   
+   // Get previous profile period start and end time
+   datetime profileStart = iTime(_Symbol, ProfileTimeframe, 1);
+   datetime profileEnd = profileStart + PeriodSeconds(ProfileTimeframe) - 1;
+   
+   // Calculate the profile
+   CalculateVolumeProfile(profileStart, profileEnd);
+   
+   // Get current period open price (on the chart timeframe)
+   double currentOpen = iOpen(_Symbol, _Period, 0);
+   
+   // Initialize buffers
+   ArrayInitialize(POCBuffer, EMPTY_VALUE);
+   ArrayInitialize(VAHighBuffer, EMPTY_VALUE);
+   ArrayInitialize(VALowBuffer, EMPTY_VALUE);
+   ArrayInitialize(ProfileHighBuffer, EMPTY_VALUE);
+   ArrayInitialize(ProfileLowBuffer, EMPTY_VALUE);
+   ArrayInitialize(SignalBuffer, EMPTY_VALUE);
+   
+   // Fill buffers with profile levels
+   for(int i = 0; i < rates_total; i++)
+   {
+      POCBuffer[i] = poc;
+      VAHighBuffer[i] = vaHigh;
+      VALowBuffer[i] = vaLow;
+      ProfileHighBuffer[i] = profileHigh;
+      ProfileLowBuffer[i] = profileLow;
+   }
+   
+   // Generate trading signals based on current open relative to profile
+   string timeframeStr = EnumToString(ProfileTimeframe);
+   StringReplace(timeframeStr, "PERIOD_", "");
+   
+   if(currentOpen > vaLow && currentOpen < vaHigh)
+   {
+      // Open within value area - no clear signal
+      Comment(timeframeStr + " Profile: Open within Value Area. No clear signal.\n" +
+              "POC: ", poc, " | VA High: ", vaHigh, " | VA Low: ", vaLow);
+   }
+   else if(currentOpen > vaHigh && currentOpen < profileHigh)
+   {
+      // Open above value area but below profile high - look for buy on retracement to POC
+      Comment(timeframeStr + " Profile: Buy opportunity on retracement to POC: ", poc, "\n" +
+              "VA High: ", vaHigh, " | Profile High: ", profileHigh);
+      
+      // Mark POC level with signal if visual elements are enabled
+      if(ShowVisualElements)
+      {
+         for(int i = 0; i < rates_total; i++)
+         {
+            if(MathAbs(close[i] - poc) < 0.5 * _Point)
+            {
+               SignalBuffer[i] = poc;
+            }
+         }
+      }
+   }
+   else if(currentOpen < vaLow && currentOpen > profileLow)
+   {
+      // Open below value area but above profile low - look for sell on retracement to POC
+      Comment(timeframeStr + " Profile: Sell opportunity on retracement to POC: ", poc, "\n" +
+              "VA Low: ", vaLow, " | Profile Low: ", profileLow);
+      
+      // Mark POC level with signal if visual elements are enabled
+      if(ShowVisualElements)
+      {
+         for(int i = 0; i < rates_total; i++)
+         {
+            if(MathAbs(close[i] - poc) < 0.5 * _Point)
+            {
+               SignalBuffer[i] = poc;
+            }
+         }
+      }
+   }
+   else if(currentOpen > profileHigh)
+   {
+      // Open above profile high - potential breakout to the upside
+      Comment(timeframeStr + " Profile: Potential upside breakout - open above profile high: ", profileHigh);
+   }
+   else if(currentOpen < profileLow)
+   {
+      // Open below profile low - potential breakout to the downside
+      Comment(timeframeStr + " Profile: Potential downside breakout - open below profile low: ", profileLow);
+   }
+   
+   return(rates_total);
 }
 
 //+------------------------------------------------------------------+
@@ -210,108 +320,4 @@ void CalculateVolumeProfile(const datetime startTime, const datetime endTime)
    
    vaHigh = priceLevels[vaHighIndex];
    vaLow = priceLevels[vaLowIndex];
-}
-
-//+------------------------------------------------------------------+
-//| Custom indicator iteration function                              |
-//+------------------------------------------------------------------+
-int OnCalculate(const int rates_total,
-                const int prev_calculated,
-                const datetime &time[],
-                const double &open[],
-                const double &high[],
-                const double &low[],
-                const double &close[],
-                const long &tick_volume[],
-                const long &volume[],
-                const int &spread[])
-{
-   // Check if we have enough data
-   if(rates_total < 2) return(0);
-   
-   // Only calculate when new bar starts on the profile timeframe
-   datetime currentProfileTime = iTime(_Symbol, ProfileTimeframe, 0);
-   if(currentProfileTime == lastCalculationTime) return(rates_total);
-   lastCalculationTime = currentProfileTime;
-   
-   // Get previous profile period start and end time
-   datetime profileStart = iTime(_Symbol, ProfileTimeframe, 1);
-   datetime profileEnd = profileStart + PeriodSeconds(ProfileTimeframe) - 1;
-   
-   // Calculate the profile
-   CalculateVolumeProfile(profileStart, profileEnd);
-   
-   // Get current period open price (on the chart timeframe)
-   double currentOpen = iOpen(_Symbol, _Period, 0);
-   
-   // Initialize buffers
-   ArrayInitialize(POCBuffer, EMPTY_VALUE);
-   ArrayInitialize(VAHighBuffer, EMPTY_VALUE);
-   ArrayInitialize(VALowBuffer, EMPTY_VALUE);
-   ArrayInitialize(ProfileHighBuffer, EMPTY_VALUE);
-   ArrayInitialize(ProfileLowBuffer, EMPTY_VALUE);
-   ArrayInitialize(SignalBuffer, EMPTY_VALUE);
-   
-   // Fill buffers with profile levels
-   for(int i = 0; i < rates_total; i++)
-   {
-      POCBuffer[i] = poc;
-      VAHighBuffer[i] = vaHigh;
-      VALowBuffer[i] = vaLow;
-      ProfileHighBuffer[i] = profileHigh;
-      ProfileLowBuffer[i] = profileLow;
-   }
-   
-   // Generate trading signals based on current open relative to profile
-   string timeframeStr = EnumToString(ProfileTimeframe);
-   StringReplace(timeframeStr, "PERIOD_", "");
-   
-   if(currentOpen > vaLow && currentOpen < vaHigh)
-   {
-      // Open within value area - no clear signal
-      Comment(timeframeStr + " Profile: Open within Value Area. No clear signal.\n" +
-              "POC: ", poc, " | VA High: ", vaHigh, " | VA Low: ", vaLow);
-   }
-   else if(currentOpen > vaHigh && currentOpen < profileHigh)
-   {
-      // Open above value area but below profile high - look for buy on retracement to POC
-      Comment(timeframeStr + " Profile: Buy opportunity on retracement to POC: ", poc, "\n" +
-              "VA High: ", vaHigh, " | Profile High: ", profileHigh);
-      
-      // Mark POC level with signal
-      for(int i = 0; i < rates_total; i++)
-      {
-         if(MathAbs(close[i] - poc) < 0.5 * _Point)
-         {
-            SignalBuffer[i] = poc;
-         }
-      }
-   }
-   else if(currentOpen < vaLow && currentOpen > profileLow)
-   {
-      // Open below value area but above profile low - look for sell on retracement to POC
-      Comment(timeframeStr + " Profile: Sell opportunity on retracement to POC: ", poc, "\n" +
-              "VA Low: ", vaLow, " | Profile Low: ", profileLow);
-      
-      // Mark POC level with signal
-      for(int i = 0; i < rates_total; i++)
-      {
-         if(MathAbs(close[i] - poc) < 0.5 * _Point)
-         {
-            SignalBuffer[i] = poc;
-         }
-      }
-   }
-   else if(currentOpen > profileHigh)
-   {
-      // Open above profile high - potential breakout to the upside
-      Comment(timeframeStr + " Profile: Potential upside breakout - open above profile high: ", profileHigh);
-   }
-   else if(currentOpen < profileLow)
-   {
-      // Open below profile low - potential breakout to the downside
-      Comment(timeframeStr + " Profile: Potential downside breakout - open below profile low: ", profileLow);
-   }
-   
-   return(rates_total);
 }
