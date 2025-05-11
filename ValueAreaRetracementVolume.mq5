@@ -2,8 +2,23 @@
 //|                      Value Area Retracement Volume               |
 //|                         Copyright 2025, Richard                  |
 //+------------------------------------------------------------------+
-#property copyright "Copyright 2023, MetaQuotes Software Corp."
-#property link      "https://www.metaquotes.net/"
+
+
+//Use Cases
+
+//Intraday Trading:
+//Set ProfileTimeframe to PERIOD_H1
+//Trade on M15 charts looking for retracements to the hourly POC
+
+//Swing Trading:
+//Set ProfileTimeframe to PERIOD_D1
+//Trade on H4 charts using daily volume profiles
+
+//Position Trading:
+//Set ProfileTimeframe to PERIOD_W1
+//Trade on D1 charts using weekly volume profiles
+
+
 #property version   "1.10"
 #property indicator_chart_window
 #property indicator_buffers 6
