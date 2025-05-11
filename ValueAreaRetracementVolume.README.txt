@@ -1,0 +1,57 @@
+Volume Profile Calculation:
+
+The indicator calculates the previous day's volume profile by aggregating volume at different price levels
+It identifies the Point of Control (POC) - the price level with the highest volume
+It calculates the Value Area (typically containing 70% of the day's volume) around the POC
+It identifies the Profile High and Low (the highest and lowest prices with significant volume)
+
+Trading Signal Generation:
+Compares today's opening price to yesterday's volume profile levels
+
+Generates signals:
+Open above VA but below Profile High → Buy on retracement to POC
+Open below VA but above Profile Low → Sell on retracement to POC
+Open above Profile High → Potential upside breakout
+Open below Profile Low → Potential downside breakout
+
+Visualization:
+
+Draws the POC as a solid blue line
+Draws Value Area High/Low as green dotted lines
+Draws Profile High/Low as red dotted lines
+Places arrow signals at the POC when a trading opportunity exists
+
+How to Use the Indicator
+Attach the indicator to your chart (it works best on daily timeframe)
+
+The indicator will automatically calculate yesterday's volume profile
+At the start of each new day, it will analyze today's open relative to yesterday's profile
+
+Look for:
+Buy signals when price retraces to POC after opening above VA
+Sell signals when price retraces to POC after opening below VA
+Potential breakouts when opening outside the profile range
+
+Customization Options
+You can adjust these parameters in the input settings:
+ValueAreaPercentage: Change from 70% to whatever percentage you prefer
+ProfileResolution: Adjust the number of price levels used for volume calculations
+ShowVisualElements: Toggle on/off the visual elements on chart
+
+
+Timeframe Selection:
+Added ProfileTimeframe input parameter allowing users to select any MT5 timeframe
+Default is still daily (PERIOD_D1) but can be changed to any timeframe (M1, H1, W1, etc.)
+
+Multi-Timeframe Analysis:
+The indicator now calculates volume profiles from the selected timeframe
+Applies the trading strategy to the current chart timeframe
+For example, you can analyze weekly profiles while trading on H1 charts
+
+Improved Profile Calculation:
+Uses minute data (M1) to calculate profiles for higher timeframes with better precision
+Automatically adjusts the number of bars to calculate based on the selected timeframe
+
+Clearer Display:
+Shows the analyzed timeframe in the comment for clarity
+All visual elements now reference the selected timeframe
